@@ -1,6 +1,6 @@
 {
   "name": "jotbird",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Publish Markdown from the command line with JotBird",
   "type": "module",
   "bin": {
@@ -8,7 +8,8 @@
   },
   "scripts": {
     "build": "node build.js",
-    "dev": "node src/cli.js"
+    "dev": "node src/cli.js",
+    "prepublishOnly": "npm run build"
   },
   "files": [
     "dist"
