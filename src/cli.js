@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { createInterface } from "node:readline";
-import { getApiKey, saveApiKey, getCredentialsPath, API_BASE } from "./config.js";
+import { getApiKey, saveApiKey, getCredentialsPath, API_BASE, VERSION } from "./config.js";
 import { publish, listDocuments, removeDocument } from "./api.js";
 import { readMappings, setMapping, removeMapping } from "./mapping.js";
 import { startCallbackServer, openBrowser } from "./login.js";
@@ -260,7 +260,7 @@ async function cmdList() {
     console.log("");
     for (const doc of docs) {
       const title = doc.title || "(untitled)";
-      const source = doc.source === "api" || doc.source === "cli" ? " [api]" : "";
+      const source = doc.source === "api" || doc.source === "cli" ? " [api]" : doc.source === "mcp" ? " [mcp]" : "";
       console.log(`  ${doc.slug}  ${title}${source}`);
       console.log(`    ${doc.url}`);
     }
@@ -296,7 +296,7 @@ If a mapping exists, publish updates the existing URL.
 }
 
 function cmdVersion() {
-  console.log("jotbird 0.1.0");
+  console.log(`jotbird ${VERSION}`);
 }
 
 // ---- Helpers ----
