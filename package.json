@@ -1,6 +1,6 @@
 {
   "name": "jotbird",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Publish Markdown from the command line with JotBird",
   "type": "module",
   "bin": {
@@ -14,5 +14,14 @@
     "dist"
   ],
   "keywords": ["markdown", "publish", "jotbird", "cli"],
-  "license": "MIT"
+  "author": "JotBird LLC",
+  "license": "MIT",
+  "homepage": "https://www.jotbird.com/cli",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jotbirdhq/jotbird-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jotbirdhq/jotbird-cli/issues"
+  }
 }

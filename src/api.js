@@ -1,4 +1,4 @@
-import { getApiKey, API_BASE } from "./config.js";
+import { getApiKey, API_BASE, USER_AGENT } from "./config.js";
 
 /**
  * Make an authenticated API request to the JotBird CLI API.
@@ -14,6 +14,7 @@ async function apiRequest(path, body = null) {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
+      "User-Agent": USER_AGENT,
     },
     body: body ? JSON.stringify(body) : "{}",
   });
@@ -51,6 +52,7 @@ export async function listDocuments() {
     method: "GET",
     headers: {
       Authorization: `Bearer ${apiKey}`,
+      "User-Agent": USER_AGENT,
     },
   });
 
@@ -77,6 +79,7 @@ export async function removeDocument(slug) {
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${apiKey}`,
+      "User-Agent": USER_AGENT,
     },
   });
 
