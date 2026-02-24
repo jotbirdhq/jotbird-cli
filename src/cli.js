@@ -343,13 +343,14 @@ function readStdin() {
   });
 }
 
-// Skip auto-run when imported as a module (e.g. during tests)
-const isDirectRun =
-  typeof process !== "undefined" &&
-  process.argv[1] &&
-  (process.argv[1].endsWith("/cli.js") || process.argv[1].endsWith("\\cli.js"));
+// Skip auto-run when imported by a test runner
+const isTestEnv = typeof process !== "undefined" && (
+  process.env.VITEST ||
+  process.env.JEST_WORKER_ID ||
+  process.env.NODE_ENV === "test"
+);
 
-if (isDirectRun) {
+if (!isTestEnv) {
   main().catch((err) => {
     console.error(err.message || err);
     process.exit(1);
