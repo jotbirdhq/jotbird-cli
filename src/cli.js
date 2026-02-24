@@ -41,6 +41,25 @@ async function main() {
   }
 }
 
+// ---- Arg parsing ----
+
+/**
+ * Parse publish sub-command arguments.
+ * Returns { slug: string|null, files: string[] }.
+ */
+export function parsePublishArgs(fileArgs) {
+  let slug = null;
+  const files = [];
+  for (let i = 0; i < fileArgs.length; i++) {
+    if (fileArgs[i] === "--slug" && i + 1 < fileArgs.length) {
+      slug = fileArgs[++i];
+    } else {
+      files.push(fileArgs[i]);
+    }
+  }
+  return { slug, files };
+}
+
 // ---- Commands ----
 
 async function cmdLogin() {
@@ -144,10 +163,12 @@ async function cmdPublish(fileArgs) {
     process.exit(1);
   }
 
+  const { slug: explicitSlug, files: remaining } = parsePublishArgs(fileArgs);
+
   let markdown;
   let filename = null;
 
-  if (fileArgs.length === 0 || fileArgs[0] === "-") {
+  if (remaining.length === 0 || remaining[0] === "-") {
     // Read from stdin
     markdown = await readStdin();
     if (!markdown.trim()) {
@@ -155,7 +176,7 @@ async function cmdPublish(fileArgs) {
       process.exit(1);
     }
   } else {
-    filename = fileArgs[0];
+    filename = remaining[0];
 
     if (!isAllowedFile(filename)) {
       const extensions = [...ALLOWED_EXTENSIONS].join(", ");
@@ -171,9 +192,9 @@ async function cmdPublish(fileArgs) {
     }
   }
 
-  // Check for existing mapping
-  let slug = null;
-  if (filename) {
+  // Check for existing mapping (explicit --slug takes precedence)
+  let slug = explicitSlug;
+  if (!slug && filename) {
     const mappings = readMappings();
     slug = mappings.get(filename) || mappings.get(basename(filename)) || null;
   }
@@ -277,21 +298,28 @@ function cmdHelp() {
 jotbird - Publish Markdown from the command line
 
 Usage:
-  jotbird login                    Authenticate with JotBird
-  jotbird publish <file.md>        Publish or update a Markdown/text file
-  jotbird publish                  Read Markdown from stdin
-  jotbird remove <file.md|slug>    Permanently delete a document
-  jotbird list                     List your published documents
-  jotbird help                     Show this help message
+  jotbird login                          Authenticate with JotBird
+  jotbird publish <file.md>              Publish or update a Markdown/text file
+  jotbird publish --slug <slug> <file>   Update an existing document by slug
+  jotbird publish                        Read Markdown from stdin
+  jotbird remove <file.md|slug>          Permanently delete a document
+  jotbird list                           List your published documents
+  jotbird help                           Show this help message
+
+Options:
+  --slug <slug>   Target a specific document to update. Overrides the
+                  .jotbird mapping. Works with both files and stdin.
 
 Examples:
   jotbird publish README.md
+  jotbird publish --slug bright-calm-meadow README.md
+  echo "# Updated" | jotbird publish --slug bright-calm-meadow
   cat notes.md | jotbird publish
-  echo "# Hello" | jotbird publish
   jotbird remove my-old-post
 
 Files are tracked via a .jotbird mapping file in the current directory.
-If a mapping exists, publish updates the existing URL.
+If a mapping exists, publish updates the existing URL. The --slug flag
+overrides the mapping and can be used without a .jotbird file.
 `.trim());
 }
 
@@ -315,7 +343,15 @@ function readStdin() {
   });
 }
 
-main().catch((err) => {
-  console.error(err.message || err);
-  process.exit(1);
-});
+// Skip auto-run when imported as a module (e.g. during tests)
+const isDirectRun =
+  typeof process !== "undefined" &&
+  process.argv[1] &&
+  (process.argv[1].endsWith("/cli.js") || process.argv[1].endsWith("\\cli.js"));
+
+if (isDirectRun) {
+  main().catch((err) => {
+    console.error(err.message || err);
+    process.exit(1);
+  });
+}

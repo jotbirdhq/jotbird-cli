@@ -36,6 +36,7 @@ jotbird publish notes.md
 |---------|-------------|
 | `jotbird login` | Authenticate with your JotBird account |
 | `jotbird publish <file>` | Publish or update a Markdown file |
+| `jotbird publish --slug <slug> <file>` | Update a specific document by slug |
 | `jotbird publish` | Read Markdown from stdin |
 | `jotbird list` | List your published documents (also visible in the [web app](https://www.jotbird.com/app) as read-only) |
 | `jotbird unpublish <file\|slug>` | Take down the public URL (keeps document in account) |
@@ -62,6 +63,13 @@ echo "# Hello" | jotbird publish
 ```
 
 When publishing from stdin, no file mapping is created — each publish creates a new document.
+
+To update a specific document by slug — regardless of file tracking — use the `--slug` flag:
+
+```bash
+jotbird publish --slug bright-calm-meadow notes.md
+echo "# Updated" | jotbird publish --slug bright-calm-meadow
+```
 
 ## Authentication
 
