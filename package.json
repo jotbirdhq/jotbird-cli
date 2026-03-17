@@ -1,6 +1,6 @@
 {
   "name": "jotbird",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Publish Markdown from the command line with JotBird",
   "type": "module",
   "bin": {

@@ -79,7 +79,7 @@ The key is stored locally at `~/.config/jotbird/credentials` with `0600` permiss
 
 ## Images
 
-Local images referenced in your Markdown are automatically uploaded when you publish. For example, `![photo](./images/photo.png)` will upload `images/photo.png` and rewrite the path to a hosted URL.
+Local images referenced in your Markdown are automatically uploaded when you publish. For example, `![photo](./images/photo.png)` will upload `images/photo.png` and replace the local path with the hosted URL in the published version. Your original file is not modified.
 
 Supported formats: PNG, JPEG, GIF, WebP, SVG. Maximum size: 10 MB per image. External URLs (`https://...`) are left unchanged.
 
