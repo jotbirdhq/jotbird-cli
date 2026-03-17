@@ -8,6 +8,7 @@ import { publish, listDocuments, removeDocument } from "./api.js";
 import { readMappings, setMapping, removeMapping } from "./mapping.js";
 import { startCallbackServer, openBrowser } from "./login.js";
 import { ALLOWED_EXTENSIONS, isAllowedFile } from "./files.js";
+import { uploadAndRewriteImages } from "./images.js";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -190,6 +191,11 @@ async function cmdPublish(fileArgs) {
       console.error(`✗ Cannot read file: ${filename}`);
       process.exit(1);
     }
+  }
+
+  // Upload local images and rewrite paths (only for file input, not stdin)
+  if (filename) {
+    markdown = await uploadAndRewriteImages(markdown, filename);
   }
 
   // Check for existing mapping (explicit --slug takes precedence)

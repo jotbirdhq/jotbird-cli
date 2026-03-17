@@ -77,9 +77,11 @@ Run `jotbird login` to open your browser and authenticate. The CLI will automati
 
 The key is stored locally at `~/.config/jotbird/credentials` with `0600` permissions.
 
-## Image uploads
+## Images
 
-Image uploads are not supported. Markdown image references (e.g. `![alt](url)`) will render only if they point to externally-hosted images.
+Local images referenced in your Markdown are automatically uploaded when you publish. For example, `![photo](./images/photo.png)` will upload `images/photo.png` and rewrite the path to a hosted URL.
+
+Supported formats: PNG, JPEG, GIF, WebP, SVG. Maximum size: 10 MB per image. External URLs (`https://...`) are left unchanged.
 
 ## Free vs Pro
 

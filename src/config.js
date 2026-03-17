@@ -24,5 +24,5 @@ export function getCredentialsPath() {
 
 export const API_BASE = process.env.JOTBIRD_API_URL || "https://www.jotbird.com";
 
-export const VERSION = "0.1.6";
+export const VERSION = "0.2.0";
 export const USER_AGENT = `jotbird-cli/${VERSION}`;
