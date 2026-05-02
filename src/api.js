@@ -32,10 +32,11 @@ async function apiRequest(path, body = null) {
 /**
  * Publish or update a document.
  */
-export async function publish({ markdown, title, slug }) {
+export async function publish({ markdown, title, slug, namespaced }) {
   const body = { markdown };
   if (title) body.title = title;
   if (slug) body.slug = slug;
+  if (namespaced) body.namespaced = true;
   return apiRequest("/api/v1/publish", body);
 }
 
@@ -69,13 +70,16 @@ export async function listDocuments() {
 /**
  * Permanently remove a document (deletes from database and public URL).
  */
-export async function removeDocument(slug) {
+export async function removeDocument(slug, { namespaced = false } = {}) {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error("Not logged in. Run `jotbird login` first.");
   }
 
-  const resp = await fetch(`${API_BASE}/api/v1/documents?slug=${encodeURIComponent(slug)}`, {
+  let url = `${API_BASE}/api/v1/documents?slug=${encodeURIComponent(slug)}`;
+  if (namespaced) url += "&namespaced=true";
+
+  const resp = await fetch(url, {
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${apiKey}`,

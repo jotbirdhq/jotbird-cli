@@ -37,10 +37,12 @@ jotbird publish notes.md
 | `jotbird login` | Authenticate with your JotBird account |
 | `jotbird publish <file>` | Publish or update a Markdown file |
 | `jotbird publish --slug <slug> <file>` | Update a specific document by slug |
+| `jotbird publish --namespace <slug> <file>` | Publish at your username URL (Pro) |
+| `jotbird publish --namespace <slug>` | Publish from stdin at your username URL (Pro) |
 | `jotbird publish` | Read Markdown from stdin |
 | `jotbird list` | List your published documents (also visible in the [web app](https://www.jotbird.com/app) as read-only) |
-| `jotbird unpublish <file\|slug>` | Take down the public URL (keeps document in account) |
 | `jotbird remove <file\|slug>` | Permanently delete a document |
+| `jotbird remove --namespace <slug>` | Permanently delete a namespaced document |
 | `jotbird help` | Show help |
 
 ## How it works
@@ -71,6 +73,37 @@ jotbird publish --slug bright-calm-meadow notes.md
 echo "# Updated" | jotbird publish --slug bright-calm-meadow
 ```
 
+## Namespaced URLs (Pro)
+
+Pro users with a username set in Account Settings can publish at permanent, human-readable URLs like `share.jotbird.com/@username/my-page`. Use `--namespace` instead of `--slug`:
+
+```bash
+jotbird publish --namespace my-page notes.md
+# → https://share.jotbird.com/@username/my-page
+```
+
+The `--namespace` flag also works with stdin:
+
+```bash
+echo "# Updated" | jotbird publish --namespace my-page
+```
+
+The `.jotbird` mapping records the full `@username/slug` path, so subsequent publishes without any flags update the same namespaced URL automatically:
+
+```bash
+jotbird publish notes.md
+# → Updated: https://share.jotbird.com/@username/my-page
+```
+
+Namespaced documents appear as `@username/slug` in `jotbird list` output.
+
+To remove a namespaced document, use the `--namespace` flag or pass the full `@username/slug` form directly:
+
+```bash
+jotbird remove --namespace my-page
+jotbird remove @username/my-page
+```
+
 ## Authentication
 
 Run `jotbird login` to open your browser and authenticate. The CLI will automatically receive your API key once you sign in — no copy-pasting required. If the browser doesn't open, the CLI displays a URL to visit manually and falls back to a paste prompt.
@@ -90,6 +123,7 @@ Supported formats: PNG, JPEG, GIF, WebP, SVG. Maximum size: 10 MB per image. Ext
 | Published links | 90 days expiration | Permanent |
 | Active documents | 10 | Unlimited |
 | Rate limit | 10 publishes/hour | 100 publishes/hour |
+| Namespaced URLs (`@username/slug`) | — | ✓ |
 
 Upgrade at [jotbird.com/pro](https://www.jotbird.com/pro).
 

@@ -5,7 +5,7 @@ import { basename } from "node:path";
 import { createInterface } from "node:readline";
 import { getApiKey, saveApiKey, getCredentialsPath, API_BASE, VERSION } from "./config.js";
 import { publish, listDocuments, removeDocument } from "./api.js";
-import { readMappings, setMapping, removeMapping } from "./mapping.js";
+import { readMappings, writeMappings, setMapping, removeMapping } from "./mapping.js";
 import { startCallbackServer, openBrowser } from "./login.js";
 import { ALLOWED_EXTENSIONS, isAllowedFile } from "./files.js";
 import { uploadAndRewriteImages } from "./images.js";
@@ -46,19 +46,36 @@ async function main() {
 
 /**
  * Parse publish sub-command arguments.
- * Returns { slug: string|null, files: string[] }.
+ * Returns { slug: string|null, namespaced: boolean, files: string[] }.
  */
 export function parsePublishArgs(fileArgs) {
   let slug = null;
+  let namespaced = false;
   const files = [];
   for (let i = 0; i < fileArgs.length; i++) {
     if (fileArgs[i] === "--slug" && i + 1 < fileArgs.length) {
       slug = fileArgs[++i];
+    } else if (fileArgs[i] === "--namespace" && i + 1 < fileArgs.length) {
+      slug = fileArgs[++i];
+      namespaced = true;
     } else {
       files.push(fileArgs[i]);
     }
   }
-  return { slug, files };
+  return { slug, namespaced, files };
+}
+
+/**
+ * Parse a .jotbird mapping value into slug and namespaced flag.
+ * "@username/my-page" → { slug: "my-page", namespaced: true }
+ * "bright-calm-meadow" → { slug: "bright-calm-meadow", namespaced: false }
+ */
+function parseSlugValue(value) {
+  if (value.startsWith("@") && value.includes("/")) {
+    const slash = value.indexOf("/");
+    return { slug: value.slice(slash + 1), namespaced: true };
+  }
+  return { slug: value, namespaced: false };
 }
 
 // ---- Commands ----
@@ -164,7 +181,12 @@ async function cmdPublish(fileArgs) {
     process.exit(1);
   }
 
-  const { slug: explicitSlug, files: remaining } = parsePublishArgs(fileArgs);
+  const { slug: explicitSlug, namespaced: explicitNamespaced, files: remaining } = parsePublishArgs(fileArgs);
+
+  if (explicitNamespaced && !explicitSlug) {
+    console.error("✗ --namespace requires a slug. Example: jotbird publish --namespace my-page file.md");
+    process.exit(1);
+  }
 
   let markdown;
   let filename = null;
@@ -198,30 +220,40 @@ async function cmdPublish(fileArgs) {
     markdown = await uploadAndRewriteImages(markdown, filename);
   }
 
-  // Check for existing mapping (explicit --slug takes precedence)
+  // Resolve slug and namespaced flag from explicit flags or existing mapping
   let slug = explicitSlug;
+  let namespaced = explicitNamespaced;
   if (!slug && filename) {
     const mappings = readMappings();
-    slug = mappings.get(filename) || mappings.get(basename(filename)) || null;
+    const stored = mappings.get(filename) || mappings.get(basename(filename)) || null;
+    if (stored) {
+      const parsed = parseSlugValue(stored);
+      slug = parsed.slug;
+      namespaced = parsed.namespaced;
+    }
   }
 
   try {
     let result;
     try {
-      result = await publish({ markdown, slug });
+      result = await publish({ markdown, slug, namespaced });
     } catch (err) {
-      // If the slug was not found, drop the stale mapping and retry as new
-      if (slug && err.message && err.message.includes("not found")) {
+      // If the slug was not found, drop the stale mapping and retry as new.
+      // Only for flat documents — namespaced slugs must be explicit.
+      if (slug && !namespaced && err.message && err.message.includes("not found")) {
         console.error(`  Slug "${slug}" no longer exists — publishing as new document.`);
         if (filename) removeMapping(filename);
-        result = await publish({ markdown, slug: null });
+        result = await publish({ markdown, slug: null, namespaced: false });
       } else {
         throw err;
       }
     }
 
     if (filename) {
-      setMapping(filename, result.slug);
+      const mappingValue = result.username
+        ? `@${result.username}/${result.slug}`
+        : result.slug;
+      setMapping(filename, mappingValue);
     }
 
     if (result.created) {
@@ -247,21 +279,48 @@ async function cmdRemove(removeArgs) {
     process.exit(1);
   }
 
-  if (removeArgs.length === 0) {
-    console.error("Usage: jotbird remove <file.md|slug>");
+  // Parse --namespace flag
+  let forceNamespaced = false;
+  const positional = [];
+  for (let i = 0; i < removeArgs.length; i++) {
+    if (removeArgs[i] === "--namespace") {
+      forceNamespaced = true;
+    } else {
+      positional.push(removeArgs[i]);
+    }
+  }
+
+  if (positional.length === 0) {
+    console.error("Usage: jotbird remove [--namespace] <file.md|slug>");
     process.exit(1);
   }
 
-  const target = removeArgs[0];
+  const target = positional[0];
 
-  // Resolve slug: check .jotbird mapping first, otherwise treat as slug directly
+  // Resolve: check .jotbird mapping first, then treat target as slug/path directly
   const mappings = readMappings();
-  const slug = mappings.get(target) || mappings.get(basename(target)) || target;
+  const stored = mappings.get(target) || mappings.get(basename(target)) || target;
+  const { slug, namespaced: mappingNamespaced } = parseSlugValue(stored);
+  const namespaced = forceNamespaced || mappingNamespaced;
 
   try {
-    await removeDocument(slug);
-    removeMapping(target);
-    console.log(`\n✓ Removed ${slug}`);
+    await removeDocument(slug, { namespaced });
+
+    // Remove from mapping by target key; if --namespace was used with a bare slug,
+    // also scan for any @*/slug entry that matches.
+    if (!removeMapping(target)) {
+      const map = readMappings();
+      for (const [file, val] of map) {
+        const parsed = parseSlugValue(val);
+        if (parsed.slug === slug && parsed.namespaced === namespaced) {
+          map.delete(file);
+          writeMappings(map);
+          break;
+        }
+      }
+    }
+
+    console.log(`\n✓ Removed ${stored}`);
   } catch (err) {
     console.error(`\n✗ Remove failed: ${err.message}`);
     process.exit(1);
@@ -288,7 +347,8 @@ async function cmdList() {
     for (const doc of docs) {
       const title = doc.title || "(untitled)";
       const source = doc.source === "api" || doc.source === "cli" ? " [api]" : doc.source === "mcp" ? " [mcp]" : "";
-      console.log(`  ${doc.slug}  ${title}${source}`);
+      const id = doc.username ? `@${doc.username}/${doc.slug}` : doc.slug;
+      console.log(`  ${id}  ${title}${source}`);
       console.log(`    ${doc.url}`);
     }
 
@@ -304,28 +364,40 @@ function cmdHelp() {
 jotbird - Publish Markdown from the command line
 
 Usage:
-  jotbird login                          Authenticate with JotBird
-  jotbird publish <file.md>              Publish or update a Markdown/text file
-  jotbird publish --slug <slug> <file>   Update an existing document by slug
-  jotbird publish                        Read Markdown from stdin
-  jotbird remove <file.md|slug>          Permanently delete a document
-  jotbird list                           List your published documents
-  jotbird help                           Show this help message
+  jotbird login                               Authenticate with JotBird
+  jotbird publish <file.md>                   Publish or update a Markdown/text file
+  jotbird publish --slug <slug> <file>        Update an existing document by slug
+  jotbird publish --namespace <slug> <file>   Publish at your username URL (Pro)
+  jotbird publish --namespace <slug>          Publish from stdin at your username URL (Pro)
+  jotbird publish                             Read Markdown from stdin
+  jotbird remove <file.md|slug>               Permanently delete a document
+  jotbird remove --namespace <slug>           Delete a document at your username URL
+  jotbird list                                List your published documents
+  jotbird help                                Show this help message
 
 Options:
-  --slug <slug>   Target a specific document to update. Overrides the
-                  .jotbird mapping. Works with both files and stdin.
+  --slug <slug>        Target a specific document to update. Overrides the
+                       .jotbird mapping. Works with both files and stdin.
+  --namespace <slug>   Publish at share.jotbird.com/@username/<slug> (Pro).
+                       Tracked as @username/slug in .jotbird — auto-updates on
+                       subsequent publishes without any flags. Appears as
+                       @username/slug in jotbird list. Requires a username in
+                       Account Settings.
 
 Examples:
   jotbird publish README.md
   jotbird publish --slug bright-calm-meadow README.md
+  jotbird publish --namespace my-page README.md
   echo "# Updated" | jotbird publish --slug bright-calm-meadow
+  echo "# Updated" | jotbird publish --namespace my-page
   cat notes.md | jotbird publish
   jotbird remove my-old-post
+  jotbird remove --namespace my-page
+  jotbird remove @username/my-page
 
 Files are tracked via a .jotbird mapping file in the current directory.
-If a mapping exists, publish updates the existing URL. The --slug flag
-overrides the mapping and can be used without a .jotbird file.
+If a mapping exists, publish updates the existing URL. Namespaced documents
+are tracked as @username/slug in the mapping and update automatically.
 `.trim());
 }
 

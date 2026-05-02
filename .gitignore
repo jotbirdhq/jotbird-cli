@@ -1,3 +1,4 @@
 node_modules/
 dist/
 .jotbird
+package-lock.json
