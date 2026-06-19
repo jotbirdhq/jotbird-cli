@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -24,5 +24,5 @@ export function getCredentialsPath() {
 
 export const API_BASE = process.env.JOTBIRD_API_URL || "https://www.jotbird.com";
 
-export const VERSION = "0.3.1";
+export const VERSION = "0.3.2";
 export const USER_AGENT = `jotbird-cli/${VERSION}`;

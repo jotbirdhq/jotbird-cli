@@ -209,7 +209,7 @@ async function cmdPublish(fileArgs) {
 
     try {
       markdown = readFileSync(filename, "utf-8");
-    } catch (err) {
+    } catch {
       console.error(`✗ Cannot read file: ${filename}`);
       process.exit(1);
     }
