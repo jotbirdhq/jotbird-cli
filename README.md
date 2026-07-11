@@ -133,7 +133,9 @@ Like `remove`, the target can be a tracked file (resolved through `.jotbird`), a
 | `--visibility <state>` | `unlisted` (default), `public` (search-indexable), `password` (Pro) |
 | `--password <pw>` | Page password, only with `--visibility password`. Omit to be prompted interactively. |
 
-Settings apply to the live page immediately — no republish needed. Free accounts can always clear Pro settings (`--theme default`, `--show-branding`) and switch between `unlisted`/`public`.
+No republish is needed. Theme and branding changes apply to the live page right away; **visibility changes can take up to about a minute** to show up as the edge cache refreshes — so if a page you just made public still looks unlisted (or still asks for a password), give it a minute rather than re-running the command. Turning password protection *on* is the exception: it takes effect immediately, so a page is never briefly left unprotected.
+
+Free accounts can always clear Pro settings (`--theme default`, `--show-branding`) and switch between `unlisted`/`public`.
 
 ### Passwords in scripts
 
