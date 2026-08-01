@@ -4,17 +4,50 @@ import { getApiKey, USER_AGENT } from "./config.js";
 
 const WORKER_BASE = "https://api.jotbird.com";
 
+// ⚠️ MIRROR of the server's ALLOWED_IMAGE_TYPES (workers/jotbird-share/src/handlers/images.ts).
+// The server accepts png/jpeg/gif/webp and NOTHING else, and verifies the magic bytes, so a type
+// listed here but not there can never upload — it just 400s and the reference is left pointing at
+// a local path that doesn't exist on the published page. SVG was listed here and is deliberately
+// absent server-side (it can carry active content; the web app excludes it for the same reason).
 const IMAGE_CONTENT_TYPES = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".gif": "image/gif",
   ".webp": "image/webp",
-  ".svg": "image/svg+xml",
 };
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
 const UPLOAD_CONCURRENCY = 3;
+
+/**
+ * Turn a markdown image reference into a path on disk.
+ *
+ * A reference is a URL, not a filename: a space is commonly written as `%20`, and a link may carry
+ * a `#anchor` or `?query`. Passing those to `resolve()` verbatim produces a path containing a
+ * literal `%20` (or trailing `#…`) that does not exist, so the image was reported "not found" and
+ * its LOCAL path shipped to the published page, where it resolves to nothing. Obsidian hit exactly
+ * this and fixed it in v0.4.13; the same fix never reached here.
+ *
+ * The raw form is tried first so a file genuinely containing "%20" in its name still wins; the
+ * decoded form is only a fallback. Returns the raw resolution when neither exists, so the existing
+ * not-found reporting still names the path the user actually wrote.
+ */
+export function resolveImageRef(ref, documentDir) {
+  const clean = ref.split(/[#?]/)[0];
+  const direct = resolve(documentDir, clean);
+  if (existsSync(direct)) return direct;
+  try {
+    const decoded = decodeURIComponent(clean);
+    if (decoded !== clean) {
+      const alt = resolve(documentDir, decoded);
+      if (existsSync(alt)) return alt;
+    }
+  } catch {
+    // Malformed %-sequence — keep the raw resolution.
+  }
+  return direct;
+}
 
 /**
  * Find local image references in markdown.
@@ -30,7 +63,7 @@ export function findLocalImages(markdown, documentDir) {
   while ((match = regex.exec(markdown)) !== null) {
     const ref = match[1].trim();
     if (ref.startsWith("http://") || ref.startsWith("https://")) continue;
-    const abs = resolve(documentDir, ref);
+    const abs = resolveImageRef(ref, documentDir);
     if (!seen.has(abs)) {
       seen.add(abs);
       images.push({ localPath: ref, absolutePath: abs });
